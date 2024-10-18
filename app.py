@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime 
+from datetime import datetime
 
 # Flask app setup
 app = Flask(__name__)
@@ -40,8 +40,8 @@ class Order(db.Model):
     distributor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(db.String(20), nullable=False, default='waiting')  # 'waiting', 'accepted', 'rejected'
+    chain = db.Column(db.String(255), nullable=True)  # New column for product chain
 
-    # This relationship points to the Product model
     product = db.relationship('Product', backref='orders', lazy=True)
 
 # Create the database tables
@@ -108,28 +108,23 @@ def add_product():
             name = request.form['name']
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
+            farmer_name = session['username']
 
-            # Get the farmer's name from the session
-            farmer_name = session['username']  # Assuming the farmer's username is stored in the session
-
-            # Create a new product entry in the database
             new_product = Product(name=name, quantity=quantity, price=price, farmer_name=farmer_name, farmer_id=session['user_id'])
-
-            # Add the product to the database
             db.session.add(new_product)
             db.session.commit()
 
-            return redirect(url_for('view_products'))
+            return redirect(url_for('add_product'))
 
-        return render_template('add_product.html')
+        # Fetch accepted and rejected orders for the farmer
+        accepted_rejected_orders = Order.query.filter_by(farmer_id=session['user_id']).filter(Order.status.in_(["accepted", "rejected"])).all()
+        return render_template('add_product.html', accepted_rejected_orders=accepted_rejected_orders)
     return redirect(url_for('login'))
 
 @app.route('/view_products_consumer')
 def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
-        
-        # Pass products with price history to the template
         return render_template('product_list_consumer.html', products=products)
     return redirect(url_for('login'))
 
@@ -138,7 +133,13 @@ def view_products_consumer():
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
         products = Product.query.all()
-        return render_template('product_list.html', products=products)
+        accepted_orders = Order.query.filter_by(distributor_id=session['user_id'], status='accepted').all()
+        accepted_product_ids = [order.product_id for order in accepted_orders]
+        
+        # Exclude accepted products from the products list
+        available_products = [product for product in products if product.id not in accepted_product_ids]
+        
+        return render_template('product_list.html', products=available_products, accepted_orders=accepted_orders)
     return redirect(url_for('login'))
 
 # Distributor clicks buy button
@@ -146,14 +147,19 @@ def view_products():
 def buy_product(product_id):
     if 'role' in session and session['role'] == 'distributor':
         product = Product.query.get_or_404(product_id)
-        new_order = Order(
-            product_id=product.id,
-            distributor_id=session['user_id'],
-            farmer_id=product.farmer_id,
-            status='waiting'
-        )
-        db.session.add(new_order)
-        db.session.commit()
+        
+        # Check if the distributor already has an order for this product
+        existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
+        if not existing_order:
+            new_order = Order(
+                product_id=product.id,
+                distributor_id=session['user_id'],
+                farmer_id=product.farmer_id,
+                status='waiting'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+
         return redirect(url_for('view_orders_distributor'))
     return redirect(url_for('login'))
 
@@ -185,6 +191,19 @@ def update_order_status(order_id, action):
         db.session.commit()
         return redirect(url_for('view_orders_farmer'))
     return redirect(url_for('login'))
-
+@app.route('/confirm_payment/<int:order_id>')
+def confirm_payment(order_id):
+    if 'role' in session and session['role'] == 'farmer':
+        order = Order.query.get_or_404(order_id)
+        order.status = 'accepted'
+        
+        # Update the product chain (example: "Farmer Name -> Distributor Name")
+        farmer = User.query.get(order.farmer_id)
+        distributor = User.query.get(order.distributor_id)
+        order.chain = f"{farmer.username} -> {distributor.username}"
+        
+        db.session.commit()
+        return redirect(url_for('view_orders_farmer'))  # Redirect back to orders
+    return redirect(url_for('login'))
 if __name__ == '__main__':
     app.run(debug=True)
