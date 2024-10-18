@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product List</title>
+    <title>QR Code for Product</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -12,24 +12,21 @@
             background-color: #f4f4f9;
         }
         .container {
-            max-width: 800px;
+            max-width: 600px;
             margin: 50px auto;
             background-color: #fff;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
         }
         h1 {
-            text-align: center;
             color: #333;
         }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
+        img {
+            width: 300px;
+            height: 300px;
+            margin: 20px 0;
         }
         a {
             text-decoration: none;
@@ -42,17 +39,10 @@
 </head>
 <body>
     <div class="container">
-        <h1>Available Products</h1>
-        <ul>
-            {% for product in products %}
-                <li>
-                    <a href="{{ url_for('view_qr_code', product_id=product.id) }}">
-                        {{ product.name }} (Quantity: {{ product.quantity }}, Price: ${{ product.price }})
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
-        <a href="/">Add Another Product</a>
+        <h1>QR Code for {{ product.name }}</h1>
+        <img src="{{ url_for('static', filename=product.qr_code_path[7:]) }}" alt="QR Code for Product">
+        <br>
+        <a href="{{ url_for('view_products') }}">Back to Product List</a>
     </div>
 </body>
 </html>
