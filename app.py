@@ -1,9 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import qrcode
 import os
-import json
 
 # Flask app setup
 app = Flask(__name__)
@@ -22,7 +20,7 @@ class Product(db.Model):
     name = db.Column(db.String(80), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    qr_code_path = db.Column(db.String(200), nullable=True)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Link to Farmer
 
 # Define the User model
 class User(db.Model):
@@ -33,6 +31,17 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False)  # Either 'farmer' or 'distributor'
     password_hash = db.Column(db.String(200), nullable=False)
 
+# Define the Order model
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    distributor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='waiting')  # 'waiting', 'accepted', 'rejected'
+
+    # This relationship points to the Product model
+    product = db.relationship('Product', backref='orders', lazy=True)
+
 # Create the database tables
 with app.app_context():
     db.create_all()
@@ -40,15 +49,7 @@ with app.app_context():
 @app.route('/')
 def index():
     return render_template('index.html')
-@app.route('/product/<int:product_id>')
-def show_qr_code(product_id):
-    # Get the product by its ID
-    product = Product.query.get(product_id)
-    if not product:
-        return "Product not found", 404
-    
-    # Render the template to show the QR code
-    return render_template('show_qr_code.html', product=product)
+
 # Sign-up page where user can choose to be a farmer or distributor
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -64,7 +65,7 @@ def signup():
         new_user = User(username=username, city=city, state=state, role=role, password_hash=password_hash)
         db.session.add(new_user)
         db.session.commit()
-        
+
         return redirect(url_for('index'))
     return render_template('signup.html')
 
@@ -75,7 +76,7 @@ def login():
         username = request.form['username']
         password = request.form['password']
         role = request.form['role']
-        
+
         user = User.query.filter_by(username=username, role=role).first()
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
@@ -105,45 +106,68 @@ def add_product():
             price = int(request.form['price'])
 
             # Create a new product entry in the database
-            new_product = Product(name=name, quantity=quantity, price=price)
-
-            # Generate the QR code for the product details
-            qr_data = {
-                'name': name,
-                'quantity': quantity,
-                'price': price
-            }
-            
-            # Create a QR code with the product details
-            qr = qrcode.QRCode()
-            qr.add_data(json.dumps(qr_data))  # Convert dict to JSON string
-            qr.make(fit=True)
-            img = qr.make_image(fill='black', back_color='white')
-
-            # Save QR code image
-            qr_code_filename = f"static/qr_codes/{name}_qr.png"
-            if not os.path.exists('static/qr_codes'):
-                os.makedirs('static/qr_codes')
-            img.save(qr_code_filename)
-
-            # Save the QR code file path in the product model
-            new_product.qr_code_path = qr_code_filename
+            new_product = Product(name=name, quantity=quantity, price=price, farmer_id=session['user_id'])
 
             # Add the product to the database
             db.session.add(new_product)
             db.session.commit()
 
             return redirect(url_for('view_products'))
-        
+
         return render_template('add_product.html')
     return redirect(url_for('login'))
 
-# View products for distributors
+# View products for distributors with buy option
 @app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
         products = Product.query.all()
         return render_template('product_list.html', products=products)
+    return redirect(url_for('login'))
+
+# Distributor clicks buy button
+@app.route('/buy/<int:product_id>', methods=['POST'])
+def buy_product(product_id):
+    if 'role' in session and session['role'] == 'distributor':
+        product = Product.query.get_or_404(product_id)
+        new_order = Order(
+            product_id=product.id,
+            distributor_id=session['user_id'],
+            farmer_id=product.farmer_id,
+            status='waiting'
+        )
+        db.session.add(new_order)
+        db.session.commit()
+        return redirect(url_for('view_orders_distributor'))
+    return redirect(url_for('login'))
+
+# Distributor's orders page
+@app.route('/distributor/orders')
+def view_orders_distributor():
+    if 'role' in session and session['role'] == 'distributor':
+        orders = Order.query.filter_by(distributor_id=session['user_id']).all()
+        return render_template('distributor_orders.html', orders=orders)
+    return redirect(url_for('login'))
+
+# Farmer's orders page
+@app.route('/farmer/orders')
+def view_orders_farmer():
+    if 'role' in session and session['role'] == 'farmer':
+        orders = Order.query.filter_by(farmer_id=session['user_id']).all()
+        return render_template('farmer_orders.html', orders=orders)
+    return redirect(url_for('login'))
+
+# Farmer accepts or rejects order
+@app.route('/farmer/orders/<int:order_id>/<action>')
+def update_order_status(order_id, action):
+    if 'role' in session and session['role'] == 'farmer':
+        order = Order.query.get_or_404(order_id)
+        if action == 'accept':
+            order.status = 'accepted'
+        elif action == 'reject':
+            order.status = 'rejected'
+        db.session.commit()
+        return redirect(url_for('view_orders_farmer'))
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
