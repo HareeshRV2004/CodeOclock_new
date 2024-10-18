@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product List for Consumers</title>
+</head>
+<body>
+    <h1>Product List with Price History</h1>
+    <table border="1">
+        <tr>
+            <th>Product Name</th>
+            <th>Quantity</th>
+            <th>Final Price</th>
+            <th>Farmer Name</th>
+            <th>Price History</th>
+        </tr>
+        {% for product in products %}
+        <tr>
+            <td>{{ product.name }}</td>
+            <td>{{ product.quantity }}</td>
+            <td>{{ product.price }}</td>
+            <td>{{ product.farmer_name }}</td>
+           
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
