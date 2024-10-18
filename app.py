@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime  # Add this import
 import qrcode
 import os
 import json
@@ -16,13 +17,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Initialize the database
 db = SQLAlchemy(app)
 
-# Define the Product model
+from datetime import datetime
 class Product(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)  # Product ID, automatically incremented
     name = db.Column(db.String(80), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Integer, nullable=False)
     qr_code_path = db.Column(db.String(200), nullable=True)
+    manufacture_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
+ # Add this line
 
 # Define the User model
 class User(db.Model):
@@ -97,23 +100,32 @@ def logout():
 
 # Add product for farmers
 @app.route('/add_product', methods=['GET', 'POST'])
+@app.route('/add_product', methods=['GET', 'POST'])
+
+
+@app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' in session and session['role'] == 'farmer':
         if request.method == 'POST':
             name = request.form['name']
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
+            manufacture_date_str = request.form['manufacture_date']
+
+            # Convert the manufacture date from string to a datetime.date object
+            manufacture_date = datetime.strptime(manufacture_date_str, '%Y-%m-%d').date()
 
             # Create a new product entry in the database
-            new_product = Product(name=name, quantity=quantity, price=price)
+            new_product = Product(name=name, quantity=quantity, price=price, manufacture_date=manufacture_date)
 
             # Generate the QR code for the product details
             qr_data = {
                 'name': name,
                 'quantity': quantity,
-                'price': price
+                'price': price,
+                'manufacture_date': manufacture_date_str  # Optionally include date in the QR code
             }
-            
+
             # Create a QR code with the product details
             qr = qrcode.QRCode()
             qr.add_data(json.dumps(qr_data))  # Convert dict to JSON string
@@ -134,7 +146,7 @@ def add_product():
             db.session.commit()
 
             return redirect(url_for('view_products'))
-        
+
         return render_template('add_product.html')
     return redirect(url_for('login'))
 
