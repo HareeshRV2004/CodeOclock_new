@@ -4,55 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Product List</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-        }
-        .container {
-            max-width: 800px;
-            margin: 50px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-        a {
-            text-decoration: none;
-            color: #007bff;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Available Products</h1>
-        <ul>
-            {% for product in products %}
-                <li>
-                    <a href="{{ url_for('view_qr_code', product_id=product.id) }}">
-                        {{ product.name }} (Quantity: {{ product.quantity }}, Price: ${{ product.price }})
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
-        <a href="/">Add Another Product</a>
-    </div>
+    <h1>Available Products</h1>
+    <ul>
+        {% for product in products %}
+            <li>{{ product.name }} - Quantity: {{ product.quantity }} - Price: {{ product.price }}</li>
+        {% endfor %}
+    </ul>
 </body>
 </html>
