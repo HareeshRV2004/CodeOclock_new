@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
+from datetime import datetime 
 
 # Flask app setup
 app = Flask(__name__)
@@ -20,6 +20,8 @@ class Product(db.Model):
     name = db.Column(db.String(80), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Integer, nullable=False)
+    farmer_name = db.Column(db.String(80), nullable=False)
+    manufacture_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # Link to Farmer
 
 # Define the User model
@@ -80,13 +82,15 @@ def login():
         user = User.query.filter_by(username=username, role=role).first()
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
-            session['username'] = user.username
+            session['username'] = user.username  # Store the username in the session
             session['role'] = user.role
 
             if role == 'farmer':
                 return redirect(url_for('add_product'))
             elif role == 'distributor':
                 return redirect(url_for('view_products'))
+            elif role == 'consumer':
+                return redirect(url_for('view_products_consumer'))
         else:
             return "Invalid credentials or role"
     return render_template('login.html')
@@ -105,8 +109,11 @@ def add_product():
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
 
+            # Get the farmer's name from the session
+            farmer_name = session['username']  # Assuming the farmer's username is stored in the session
+
             # Create a new product entry in the database
-            new_product = Product(name=name, quantity=quantity, price=price, farmer_id=session['user_id'])
+            new_product = Product(name=name, quantity=quantity, price=price, farmer_name=farmer_name, farmer_id=session['user_id'])
 
             # Add the product to the database
             db.session.add(new_product)
@@ -115,6 +122,15 @@ def add_product():
             return redirect(url_for('view_products'))
 
         return render_template('add_product.html')
+    return redirect(url_for('login'))
+
+@app.route('/view_products_consumer')
+def view_products_consumer():
+    if 'role' in session and session['role'] == 'consumer':
+        products = Product.query.all()
+        
+        # Pass products with price history to the template
+        return render_template('product_list_consumer.html', products=products)
     return redirect(url_for('login'))
 
 # View products for distributors with buy option

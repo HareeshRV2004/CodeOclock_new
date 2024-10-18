@@ -16,6 +16,7 @@
                     <th>Product Name</th>
                     <th>Quantity</th>
                     <th>Price</th>
+                    <th>Date</th>
                     {% if session.role == 'distributor' %}
                     <th>Actions</th>
                     {% endif %}
@@ -27,6 +28,7 @@
                     <td>{{ product.name }}</td>
                     <td>{{ product.quantity }}</td>
                     <td>${{ product.price }}</td>
+                    <td>{{product.manufacture_date}}</td>
                     {% if session.role == 'distributor' %}
                     <td>
                         <form action="{{ url_for('buy_product', product_id=product.id) }}" method="post">
