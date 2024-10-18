@@ -28,7 +28,7 @@
                     <td>{{ product.name }}</td>
                     <td>{{ product.quantity }}</td>
                     <td>${{ product.price }}</td>
-                    <td>{{product.manufacture_date}}</td>
+                    <td>{{ product.manufacture_date }}</td>
                     {% if session.role == 'distributor' %}
                     <td>
                         <form action="{{ url_for('buy_product', product_id=product.id) }}" method="post">
@@ -44,6 +44,32 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- Section to display accepted orders -->
+        <h3>Your Accepted Orders</h3>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in accepted_orders %}
+                <tr>
+                    <td>{{ order.product.name }}</td>
+                    <td>{{ order.product.quantity }}</td>
+                    <td>{{ order.status }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="text-center">No accepted orders.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>
 </body>

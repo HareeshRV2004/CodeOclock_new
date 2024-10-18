@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Product</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script>
+        function confirmPayment(orderId) {
+            if (confirm("Do you want to accept payment confirmation?")) {
+                window.location.href = `/confirm_payment/${orderId}`;
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="container mt-5">
@@ -21,14 +28,11 @@
             <div class="form-group">
                 <label for="price">Price</label>
                 <input type="number" class="form-control" id="price" name="price" required>
-
             </div>
             <div class="form-group">
                 <label for="manufacture_date">Manufacture Date:</label>
                 <input type="date" id="manufacture_date" name="manufacture_date" required>
-                
             </div>
-            
             <button type="submit" class="btn btn-primary">Add Product</button>
             <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
         </form>
@@ -38,8 +42,44 @@
         <h3 class="mt-4">Order Management</h3>
         <a href="{{ url_for('view_orders_farmer') }}" class="btn btn-info">View Orders</a>
         <a href="{{ url_for('view_products') }}" class="btn btn-link mt-3">View All Products</a>
+
+        <hr>
+
+        <h3 class="mt-4">Accepted and Rejected Orders</h3>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Product Chain</th>
+                    <th>Payment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in accepted_rejected_orders %}
+                <tr>
+                    <td>{{ order.product.name }}</td>
+                    <td>{{ order.product.quantity }}</td>
+                    <td>{{ order.status }}</td>
+                    <td>{{ order.chain }}</td>
+                    <td>
+                        <button onclick="confirmPayment({{ order.id }})" class="btn btn-success">Confirm Payment</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No accepted or rejected orders.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    </body>
+</body>
+
+
+
+
     <style>
         body {
             font-family: 'Arial', sans-serif;
