@@ -21,7 +21,8 @@ class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Integer, nullable=False)  # Final price
+    farmer_name = db.Column(db.String(80), nullable=False)  # Farmer's name
     qr_code_path = db.Column(db.String(200), nullable=True)
 
 # Define the User model
@@ -30,7 +31,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     city = db.Column(db.String(80), nullable=False)
     state = db.Column(db.String(80), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # Either 'farmer' or 'distributor'
+    role = db.Column(db.String(20), nullable=False)  # Either 'farmer', 'distributor', or 'consumer'
     password_hash = db.Column(db.String(200), nullable=False)
 
 # Create the database tables
@@ -40,6 +41,7 @@ with app.app_context():
 @app.route('/')
 def index():
     return render_template('index.html')
+
 @app.route('/product/<int:product_id>')
 def show_qr_code(product_id):
     # Get the product by its ID
@@ -49,7 +51,8 @@ def show_qr_code(product_id):
     
     # Render the template to show the QR code
     return render_template('show_qr_code.html', product=product)
-# Sign-up page where user can choose to be a farmer or distributor
+
+# Sign-up page where user can choose to be a farmer, distributor, or consumer
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -68,7 +71,7 @@ def signup():
         return redirect(url_for('index'))
     return render_template('signup.html')
 
-# Login page for farmers and distributors
+# Login page for farmers, distributors, and consumers
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -86,6 +89,8 @@ def login():
                 return redirect(url_for('add_product'))
             elif role == 'distributor':
                 return redirect(url_for('view_products'))
+            elif role == 'consumer':
+                return redirect(url_for('view_products_consumer'))
         else:
             return "Invalid credentials or role"
     return render_template('login.html')
@@ -103,17 +108,18 @@ def add_product():
             name = request.form['name']
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
+            farmer_name = session['username']
 
-            # Create a new product entry in the database
-            new_product = Product(name=name, quantity=quantity, price=price)
+          
 
             # Generate the QR code for the product details
             qr_data = {
                 'name': name,
                 'quantity': quantity,
-                'price': price
+                'price': price,
+                'farmer_name': farmer_name
             }
-            
+
             # Create a QR code with the product details
             qr = qrcode.QRCode()
             qr.add_data(json.dumps(qr_data))  # Convert dict to JSON string
@@ -144,6 +150,16 @@ def view_products():
     if 'role' in session and session['role'] == 'distributor':
         products = Product.query.all()
         return render_template('product_list.html', products=products)
+    return redirect(url_for('login'))
+
+# View products for consumers (with price history)
+@app.route('/view_products_consumer')
+def view_products_consumer():
+    if 'role' in session and session['role'] == 'consumer':
+        products = Product.query.all()
+        
+        # Pass products with price history to the template
+        return render_template('product_list_consumer.html', products=products)
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
