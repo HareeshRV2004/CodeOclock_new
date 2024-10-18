@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Transaction Details</h2>
+        <p><strong>Transaction Hash:</strong> {{ tx_hash }}</p>
+        <p><strong>Block Number:</strong> {{ transactions[0]['block_number'] }}</p>
+        <p><strong>Price:</strong> {{ transactions[0]['price'] }}</p>
+
+        <!-- You can add more details here depending on your contract's logs and events -->
+    </div>
+</body>
+</html>
