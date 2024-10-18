@@ -40,7 +40,15 @@ with app.app_context():
 @app.route('/')
 def index():
     return render_template('index.html')
-
+@app.route('/product/<int:product_id>')
+def show_qr_code(product_id):
+    # Get the product by its ID
+    product = Product.query.get(product_id)
+    if not product:
+        return "Product not found", 404
+    
+    # Render the template to show the QR code
+    return render_template('show_qr_code.html', product=product)
 # Sign-up page where user can choose to be a farmer or distributor
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
