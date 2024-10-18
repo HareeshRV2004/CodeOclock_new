@@ -109,21 +109,24 @@ def logout():
 
 
 @app.route('/add_product', methods=['GET', 'POST'])
+@app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' in session and session['role'] == 'farmer':
         if request.method == 'POST':
             name = request.form['name']
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
+            farmer_name = session['username']  # Get the farmer's name from the session
 
             # Create a new product entry in the database
-            new_product = Product(name=name, quantity=quantity, price=price)
+            new_product = Product(name=name, quantity=quantity, price=price, farmer_name=farmer_name)
 
             # Generate the QR code for the product details
             qr_data = {
                 'name': name,
                 'quantity': quantity,
-                'price': price
+                'price': price,
+                'farmer_name': farmer_name
             }
 
             # Create a QR code with the product details
