@@ -13,6 +13,7 @@
             <th>Quantity</th>
             <th>Final Price</th>
             <th>Farmer Name</th>
+            <th>Date</th>
             <th>Price History</th>
         </tr>
         {% for product in products %}
@@ -21,7 +22,7 @@
             <td>{{ product.quantity }}</td>
             <td>{{ product.price }}</td>
             <td>{{ product.farmer_name }}</td>
-           
+            <td>{{product.manufacture_date}}</td>
         </tr>
         {% endfor %}
     </table>
