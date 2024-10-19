@@ -4,9 +4,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import qrcode
 import os
+from werkzeug.utils import secure_filename
 
-# Flask app setup
 app = Flask(__name__)
+
 app.secret_key = 'supersecretkey'  # Secret key for session management
 
 # Configure the SQLite database
@@ -25,9 +26,13 @@ class Product(db.Model):
     farmer_name = db.Column(db.String(80), nullable=False)
     manufacture_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    photo = db.Column(db.String(255), nullable=True)  # Path to store the photo
 
-    def generate_qr_code(self):
-        qr_data = f"Product: {self.name}, Price: {self.price}, Farmer: {self.farmer_name}"
+
+    def generate_qr_code(self, chain=None):
+        qr_data = f"Product: {self.name}, Price: {self.price}, Quantity: {self.quantity}, Farmer: {self.farmer_name}"
+        if chain:
+            qr_data += f", Chain: {chain}"
         qr = qrcode.make(qr_data)
         qr_code_path = f'static/qr_codes/{self.id}.png'
         qr.save(qr_code_path)
@@ -107,6 +112,8 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
+from datetime import datetime
+
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     if 'role' in session and session['role'] == 'farmer':
@@ -115,8 +122,26 @@ def add_product():
             quantity = int(request.form['quantity'])
             price = int(request.form['price'])
             farmer_name = session['username']
+            
+            # Convert manufacture_date from string to date object
+            manufacture_date_str = request.form['manufacture_date']
+            manufacture_date = datetime.strptime(manufacture_date_str, '%Y-%m-%d').date()
+            
+            # Handle the uploaded photo
+            photo = request.files['photo']
+            if photo:
+                # Save the photo to a static folder
+                photo_filename = f"{name}_{session['user_id']}_{photo.filename}"
+                photo_path = os.path.join('static/product_photos', photo_filename)
+                photo.save(photo_path)
+            else:
+                photo_path = None
 
-            new_product = Product(name=name, quantity=quantity, price=price, farmer_name=farmer_name, farmer_id=session['user_id'])
+            new_product = Product(
+                name=name, quantity=quantity, price=price, 
+                farmer_name=farmer_name, farmer_id=session['user_id'], 
+                manufacture_date=manufacture_date, photo=photo_path
+            )
             db.session.add(new_product)
             db.session.commit()
 
@@ -129,14 +154,16 @@ def add_product():
         return render_template('add_product.html', accepted_rejected_orders=accepted_rejected_orders)
     return redirect(url_for('login'))
 
+
+
 @app.route('/view_products_consumer')
 def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
     return render_template('product_list_consumer.html', products=products)
-   
 
 # View products for distributors with buy 
+@app.route('/view_products')
 @app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
@@ -146,13 +173,16 @@ def view_products():
         
         available_products = []
         for product in products:
+            farmer = User.query.get(product.farmer_id)  # Get the farmer's information
             product_info = {
                 'id': product.id,
                 'name': product.name,
                 'quantity': product.quantity,
                 'price': product.price,
                 'manufacture_date': product.manufacture_date,
-                'farmer_name': product.farmer_name,
+                'farmer_name': farmer.username,  # Get farmer's username
+                'farmer_city': farmer.city,      # Get farmer's city
+                'farmer_state': farmer.state,    # Get farmer's state
                 'purchased_by': None
             }
             
@@ -200,24 +230,6 @@ def buy_product(product_id):
 
     return {'status': 'error'}  # Return error if something goes wrong
 
-    if 'role' in session and session['role'] == 'distributor':
-        product = Product.query.get_or_404(product_id)
-        
-        # Check if the distributor already has an order for this product
-        existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
-        if not existing_order:
-            new_order = Order(
-                product_id=product.id,
-                distributor_id=session['user_id'],
-                farmer_id=product.farmer_id,
-                status='waiting'
-            )
-            db.session.add(new_order)
-            db.session.commit()
-
-        return redirect(url_for('view_orders_distributor'))
-    return redirect(url_for('login'))
-
 @app.route('/distributor/orders')
 def view_orders_distributor():
     if 'role' in session and session['role'] == 'distributor':
@@ -255,6 +267,11 @@ def confirm_payment(order_id):
         order.chain = f"{farmer.username} -> {distributor.username}"
         
         db.session.commit()
+        
+        # After confirming payment, regenerate the QR code to include the chain
+        product = Product.query.get(order.product_id)
+        product.generate_qr_code(chain=order.chain)
+        
         return redirect(url_for('view_orders_farmer'))
     return redirect(url_for('login'))
 
