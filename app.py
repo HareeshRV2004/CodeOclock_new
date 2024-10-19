@@ -5,7 +5,6 @@ from datetime import datetime
 import qrcode
 import os
 
-# Flask app setup
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Secret key for session management
 
@@ -26,8 +25,10 @@ class Product(db.Model):
     manufacture_date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def generate_qr_code(self):
-        qr_data = f"Product: {self.name}, Price: {self.price}, Farmer: {self.farmer_name}"
+    def generate_qr_code(self, chain=None):
+        qr_data = f"Product: {self.name}, Price: {self.price}, Quantity: {self.quantity}, Farmer: {self.farmer_name}"
+        if chain:
+            qr_data += f", Chain: {chain}"
         qr = qrcode.make(qr_data)
         qr_code_path = f'static/qr_codes/{self.id}.png'
         qr.save(qr_code_path)
@@ -134,7 +135,6 @@ def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
     return render_template('product_list_consumer.html', products=products)
-   
 
 # View products for distributors with buy 
 @app.route('/view_products')
@@ -200,24 +200,6 @@ def buy_product(product_id):
 
     return {'status': 'error'}  # Return error if something goes wrong
 
-    if 'role' in session and session['role'] == 'distributor':
-        product = Product.query.get_or_404(product_id)
-        
-        # Check if the distributor already has an order for this product
-        existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
-        if not existing_order:
-            new_order = Order(
-                product_id=product.id,
-                distributor_id=session['user_id'],
-                farmer_id=product.farmer_id,
-                status='waiting'
-            )
-            db.session.add(new_order)
-            db.session.commit()
-
-        return redirect(url_for('view_orders_distributor'))
-    return redirect(url_for('login'))
-
 @app.route('/distributor/orders')
 def view_orders_distributor():
     if 'role' in session and session['role'] == 'distributor':
@@ -255,6 +237,11 @@ def confirm_payment(order_id):
         order.chain = f"{farmer.username} -> {distributor.username}"
         
         db.session.commit()
+        
+        # After confirming payment, regenerate the QR code to include the chain
+        product = Product.query.get(order.product_id)
+        product.generate_qr_code(chain=order.chain)
+        
         return redirect(url_for('view_orders_farmer'))
     return redirect(url_for('login'))
 

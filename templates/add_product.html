@@ -28,6 +28,10 @@
             max-width: 200px;
             margin: 20px 0;
         }
+        .table td img {
+            width: 50px;
+            height: 50px;
+        }
     </style>
 </head>
 <body>
@@ -48,7 +52,7 @@
                     <input type="number" class="form-control" id="price" name="price" required>
                 </div>
                 <div class="form-group">
-                    <label for="manufacture_date">Manufacture Date:</label>
+                    <label for="manufacture_date">Manufacture Date</label>
                     <input type="date" id="manufacture_date" name="manufacture_date" class="form-control" required>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Product</button>
@@ -97,7 +101,7 @@
                     </td>
                     <td>
                         {% if order.status == 'accepted' %}
-                        <img src="{{ url_for('static', filename='qr_codes/' + order.product.id|string + '.png') }}" alt="QR Code" style="width: 50px; height: 50px;">
+                        <img src="{{ url_for('static', filename='qr_codes/' + order.product.id|string + '.png') }}" alt="QR Code">
                         {% else %}
                         N/A
                         {% endif %}
