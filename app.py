@@ -133,9 +133,10 @@ def add_product():
 def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
-        return render_template('product_list_consumer.html', products=products)
-    return redirect(url_for('login'))
+    return render_template('product_list_consumer.html', products=products)
+   
 
+# View products for distributors with buy 
 @app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
@@ -168,10 +169,41 @@ def view_products():
         return render_template('product_list.html', products=available_products, accepted_orders=accepted_orders)
     return redirect(url_for('login'))
 
+# View all products added by the farmer
+@app.route('/farmer/products')
+def view_all_farmer_products():
+    if 'role' in session and session['role'] == 'farmer':
+        # Query all products added by the logged-in farmer
+        products = Product.query.filter_by(farmer_id=session['user_id']).all()
+        return render_template('farmer_products.html', products=products)
+    return redirect(url_for('login'))
+
+# Distributor clicks buy button
 @app.route('/buy/<int:product_id>', methods=['POST'])
 def buy_product(product_id):
     if 'role' in session and session['role'] == 'distributor':
         product = Product.query.get_or_404(product_id)
+        
+        # Check if the distributor already has an order for this product
+        existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
+        if not existing_order:
+            new_order = Order(
+                product_id=product.id,
+                distributor_id=session['user_id'],
+                farmer_id=product.farmer_id,
+                status='waiting'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+
+            return {'status': 'waiting'}  # Return JSON response to AJAX
+
+    return {'status': 'error'}  # Return error if something goes wrong
+
+    if 'role' in session and session['role'] == 'distributor':
+        product = Product.query.get_or_404(product_id)
+        
+        # Check if the distributor already has an order for this product
         existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
         if not existing_order:
             new_order = Order(
