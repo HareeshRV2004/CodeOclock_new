@@ -10,49 +10,41 @@
 <body>
     <div class="container mt-5">
         <h2>Available Products</h2>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Product Name</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Date</th>
-                    <th>Farmer</th>
-                    <th>Distributor</th>
-                    {% if session.role == 'distributor' %}
-                    <th>Actions</th>
-                    {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for product in products %}
-                <tr id="product-row-{{ product.id }}">
-                    <td>{{ product.name }}</td>
-                    <td>{{ product.quantity }}</td>
-                    <td>${{ product.price }}</td>
-                    <td>{{ product.manufacture_date }}</td>
-                    <td>{{ product.farmer_name }}</td>
-                    <td>
-                        {% if product.purchased_by %}
-                            {{ product.purchased_by }}
-                        {% else %}
-                            Not Purchased
-                        {% endif %}
-                    </td>
-                    {% if session.role == 'distributor' %}
-                    <td>
-                        <button class="btn btn-primary buy-btn" data-product-id="{{ product.id }}">Buy</button>
+        <div class="accordion" id="productAccordion">
+            {% for product in products %}
+            <div class="card">
+                <div class="card-header" id="heading{{ product.id }}">
+                    <h5 class="mb-0">
+                        <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapse{{ product.id }}" aria-expanded="true" aria-controls="collapse{{ product.id }}">
+                            {{ product.name }} - ${{ product.price }}
+                        </button>
+                        {% if session.role == 'distributor' %}
+                        <button class="btn btn-primary buy-btn float-right" data-product-id="{{ product.id }}">Buy</button>
                         <span class="status" id="status-{{ product.id }}"></span> <!-- Status message area -->
-                    </td>
-                    {% endif %}
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center">No products available.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        {% endif %}
+                    </h5>
+                </div>
+
+                <div id="collapse{{ product.id }}" class="collapse" aria-labelledby="heading{{ product.id }}" data-parent="#productAccordion">
+                    <div class="card-body">
+                        <p><strong>Product Name:</strong> {{ product.name }}</p>
+                        <p><strong>Quantity:</strong> {{ product.quantity }}</p>
+                        <p><strong>Price:</strong> ${{ product.price }}</p>
+                        <p><strong>Date of Manufacture:</strong> {{ product.manufacture_date }}</p>
+                        <p><strong>Farmer:</strong> {{ product.farmer_name }}</p>
+
+                        <button class="btn btn-info show-farmer-details" data-farmer-id="{{ product.farmer_id }}">Show Farmer Details</button>
+                        <div id="farmer-details-{{ product.farmer_id }}" style="display: none;">
+                            <p><strong>City:</strong> {{ product.farmer_city }}</p>
+                            <p><strong>State:</strong> {{ product.farmer_state }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p>No products available at this time.</p>
+            {% endfor %}
+        </div>
 
         <!-- Section to display accepted orders -->
         <h3>Your Accepted Orders</h3>
@@ -104,7 +96,14 @@
                     }
                 });
             });
+
+            // When the "Show Farmer Details" button is clicked
+            $('.show-farmer-details').click(function() {
+                var farmerId = $(this).data('farmer-id');
+                $('#farmer-details-' + farmerId).toggle();
+            });
         });
     </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script> <!-- Include Bootstrap JS -->
 </body>
 </html>

@@ -138,6 +138,7 @@ def view_products_consumer():
 
 # View products for distributors with buy 
 @app.route('/view_products')
+@app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
         products = Product.query.all()
@@ -146,13 +147,16 @@ def view_products():
         
         available_products = []
         for product in products:
+            farmer = User.query.get(product.farmer_id)  # Get the farmer's information
             product_info = {
                 'id': product.id,
                 'name': product.name,
                 'quantity': product.quantity,
                 'price': product.price,
                 'manufacture_date': product.manufacture_date,
-                'farmer_name': product.farmer_name,
+                'farmer_name': farmer.username,  # Get farmer's username
+                'farmer_city': farmer.city,      # Get farmer's city
+                'farmer_state': farmer.state,    # Get farmer's state
                 'purchased_by': None
             }
             
