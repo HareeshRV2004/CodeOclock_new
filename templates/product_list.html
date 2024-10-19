@@ -1,4 +1,3 @@
-<!-- product_list.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Available Products</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> <!-- Include jQuery -->
 </head>
 <body>
     <div class="container mt-5">
@@ -24,16 +24,15 @@
             </thead>
             <tbody>
                 {% for product in products %}
-                <tr>
+                <tr id="product-row-{{ product.id }}">
                     <td>{{ product.name }}</td>
                     <td>{{ product.quantity }}</td>
                     <td>${{ product.price }}</td>
                     <td>{{ product.manufacture_date }}</td>
                     {% if session.role == 'distributor' %}
                     <td>
-                        <form action="{{ url_for('buy_product', product_id=product.id) }}" method="post">
-                            <button type="submit" class="btn btn-primary">Buy</button>
-                        </form>
+                        <button class="btn btn-primary buy-btn" data-product-id="{{ product.id }}">Buy</button>
+                        <span class="status" id="status-{{ product.id }}"></span> <!-- Status message area -->
                     </td>
                     {% endif %}
                 </tr>
@@ -72,5 +71,30 @@
 
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Back to Home</a>
     </div>
+
+    <script>
+        $(document).ready(function() {
+            // When a buy button is clicked
+            $('.buy-btn').click(function() {
+                var productId = $(this).data('product-id');
+                
+                $.ajax({
+                    url: '/buy/' + productId,
+                    type: 'POST',
+                    success: function(response) {
+                        if (response.status === 'waiting') {
+                            // Update the status message in the same row
+                            $('#status-' + productId).text('Waiting for approval');
+                        } else {
+                            $('#status-' + productId).text('Error processing the order');
+                        }
+                    },
+                    error: function() {
+                        $('#status-' + productId).text('Error processing the order');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

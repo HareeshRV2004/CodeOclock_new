@@ -160,6 +160,25 @@ def buy_product(product_id):
             db.session.add(new_order)
             db.session.commit()
 
+            return {'status': 'waiting'}  # Return JSON response to AJAX
+
+    return {'status': 'error'}  # Return error if something goes wrong
+
+    if 'role' in session and session['role'] == 'distributor':
+        product = Product.query.get_or_404(product_id)
+        
+        # Check if the distributor already has an order for this product
+        existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
+        if not existing_order:
+            new_order = Order(
+                product_id=product.id,
+                distributor_id=session['user_id'],
+                farmer_id=product.farmer_id,
+                status='waiting'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+
         return redirect(url_for('view_orders_distributor'))
     return redirect(url_for('login'))
 
