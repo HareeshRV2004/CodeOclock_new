@@ -143,7 +143,27 @@ def view_products():
         accepted_orders = Order.query.filter_by(distributor_id=session['user_id'], status='accepted').all()
         accepted_product_ids = [order.product_id for order in accepted_orders]
         
-        available_products = [product for product in products if product.id not in accepted_product_ids]
+        available_products = []
+        for product in products:
+            product_info = {
+                'id': product.id,
+                'name': product.name,
+                'quantity': product.quantity,
+                'price': product.price,
+                'manufacture_date': product.manufacture_date,
+                'farmer_name': product.farmer_name,
+                'purchased_by': None
+            }
+            
+            # Check if the product has been purchased by any distributor
+            order = Order.query.filter_by(product_id=product.id, status='accepted').first()
+            if order:
+                distributor = User.query.get(order.distributor_id)
+                product_info['purchased_by'] = distributor.username
+            
+            # Only show products that have not been purchased by the current distributor
+            if product.id not in accepted_product_ids:
+                available_products.append(product_info)
         
         return render_template('product_list.html', products=available_products, accepted_orders=accepted_orders)
     return redirect(url_for('login'))
