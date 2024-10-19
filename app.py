@@ -125,10 +125,10 @@ def add_product():
 def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
-        return render_template('product_list_consumer.html', products=products)
-    return redirect(url_for('login'))
+    return render_template('product_list_consumer.html', products=products)
+   
 
-# View products for distributors with buy option
+# View products for distributors with buy 
 @app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
@@ -140,6 +140,15 @@ def view_products():
         available_products = [product for product in products if product.id not in accepted_product_ids]
         
         return render_template('product_list.html', products=available_products, accepted_orders=accepted_orders)
+    return redirect(url_for('login'))
+
+# View all products added by the farmer
+@app.route('/farmer/products')
+def view_all_farmer_products():
+    if 'role' in session and session['role'] == 'farmer':
+        # Query all products added by the logged-in farmer
+        products = Product.query.filter_by(farmer_id=session['user_id']).all()
+        return render_template('farmer_products.html', products=products)
     return redirect(url_for('login'))
 
 # Distributor clicks buy button
