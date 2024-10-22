@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,12 @@
                 window.location.href = `/confirm_payment/${orderId}`;
             }
         }
+
+        // Function to display QR code in a modal
+        function showQRCode(src) {
+            document.getElementById("qrModalImage").src = src;
+            $('#qrModal').modal('show');
+        }
     </script>
     <style>
         body {
@@ -18,27 +25,38 @@
             background-color: #f4f4f4;
             padding: 20px;
         }
+
         .form-container {
             background: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
+
         .qr-code {
-            max-width: 200px;
-            margin: 20px 0;
+            max-width: 50px;
+            margin: 10px 0;
+            cursor: pointer;
         }
+
         .table td img {
             width: 50px;
             height: 50px;
+            cursor: pointer;
+        }
+
+        .modal-body img {
+            width: 100%; /* Make the QR code image fill the modal */
         }
     </style>
 </head>
+
 <body>
     <div class="container mt-5">
         <div class="form-container">
             <h2>Add Product</h2>
             <form method="POST" action="{{ url_for('add_product') }}">
+                <!-- Form fields -->
                 <div class="form-group">
                     <label for="name">Product Name</label>
                     <input type="text" class="form-control" id="name" name="name" required>
@@ -61,7 +79,8 @@
 
             {% if qr_code_path %}
             <h3>QR Code for Added Product</h3>
-            <img src="{{ url_for('static', filename='qr_codes/' + qr_code_path.split('/')[-1]) }}" alt="QR Code" class="qr-code">
+            <!-- Make the QR code clickable -->
+            <img src="{{ url_for('static', filename='qr_codes/' + qr_code_path.split('/')[-1]) }}" alt="QR Code" class="qr-code" onclick="showQRCode(this.src)">
             {% endif %}
         </div>
 
@@ -101,7 +120,8 @@
                     </td>
                     <td>
                         {% if order.status == 'accepted' %}
-                        <img src="{{ url_for('static', filename='qr_codes/' + order.product.id|string + '.png') }}" alt="QR Code">
+                        <!-- QR Code as clickable image -->
+                        <img src="{{ url_for('static', filename='qr_codes/' + order.product.id|string + '.png') }}" alt="QR Code" onclick="showQRCode(this.src)">
                         {% else %}
                         N/A
                         {% endif %}
@@ -115,5 +135,31 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Modal for displaying the QR code larger -->
+    <div class="modal fade" id="qrModal" tabindex="-1" role="dialog" aria-labelledby="qrModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qrModalLabel">QR Code</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <img id="qrModalImage" src="" alt="QR Code">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap and jQuery scripts for the modal -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.7/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>
