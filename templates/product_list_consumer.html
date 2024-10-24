@@ -1,30 +1,169 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product List for Consumers</title>
-</head>
-<body>
-    <h1>Product List with Price History</h1>
-    <table border="1">
-        <tr>
-            <th>Product Name</th>
-            <th>Quantity</th>
-            <th>Final Price</th>
-            <th>Farmer Name</th>
-            <th>Date</th>
-            <th>Price History</th>
-        </tr>
-        {% for product in products %}
-        <tr>
-            <td>{{ product.name }}</td>
-            <td>{{ product.quantity }}</td>
-            <td>{{ product.price }}</td>
-            <td>{{ product.farmer_name }}</td>
-            <td>{{product.manufacture_date}}</td>
-        </tr>
-        {% endfor %}
+<div class="container">
+    <h1>Search for a Product</h1>
+    <input type="text" id="searchBox" placeholder="Enter Product ID" class="form-control mb-3">
+    <button class="btn btn-primary" onclick="searchProduct()">Search</button>
+
+    <table class="table table-bordered mt-3" id="productTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Final Price</th>
+                <th>Farmer Name</th>
+                <th>Date</th>
+                <th>Review</th>
+                
+            </tr>
+        </thead>
+        
+        
+        <tbody id="productBody"></tbody>
     </table>
-</body>
-</html>
+</div>
+
+<script>
+    function searchProduct() {
+        const productId = document.getElementById('searchBox').value;
+        
+        fetch(`/product/${productId}`)
+            .then(response => response.json())
+            .then(data => {
+                const productTable = document.getElementById('productTable');
+                const productBody = document.getElementById('productBody');
+                
+                productBody.innerHTML = ''; // Clear previous results
+
+                if (data.product) {
+                    productTable.style.display = '';
+                    const row = `
+                        <tr>
+                            <td>${data.product.name}</td>
+                            <td>${data.product.quantity}</td>
+                            <td>${data.product.price}</td>
+                            <td>${data.product.farmer_name}</td>
+                            <td>${data.product.manufacture_date}</td>
+                            <td>
+                                <button class="btn btn-primary" onclick="openReviewModal(${data.product.id})">Review</button>
+                            </td>
+                        </tr>`;
+                    productBody.innerHTML = row;
+                } else {
+                    productTable.style.display = 'none';
+                    alert('Product not found');
+                }
+            });
+    }
+
+    function openReviewModal(productId) {
+        document.getElementById('productId').value = productId;
+        $('#reviewModal').modal('show');
+    }
+
+    function submitReview() {
+        const productId = document.getElementById('productId').value;
+        const rating = document.getElementById('rating').value;
+        const reviewText = document.getElementById('reviewText').value;
+
+        fetch(`/product/${productId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rating, reviewText })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Review submitted successfully!');
+                $('#reviewModal').modal('hide');
+                document.getElementById('searchBox').value = ''; // Clear search box
+                document.getElementById('productTable').style.display = 'none'; // Hide table
+            } else {
+                alert('Error submitting review.');
+            }
+        });
+    }
+</script>
+
+<!-- Review Modal code remains the same -->
+
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" role="dialog" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reviewModalLabel">Submit a Review</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rating">Rating:</label>
+                    <select id="rating" class="form-control">
+                        <option value="1">1 Star</option>
+                        <option value="2">2 Stars</option>
+                        <option value="3">3 Stars</option>
+                        <option value="4">4 Stars</option>
+                        <option value="5">5 Stars</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reviewText">Review:</label>
+                    <textarea id="reviewText" class="form-control" rows="3"></textarea>
+                </div>
+                <input type="hidden" id="productId" value="">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitReview()">Submit Review</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add the following JavaScript at the bottom of your HTML -->
+<script>
+    function filterProducts() {
+        const searchValue = document.getElementById('searchBox').value.toLowerCase();
+        const rows = document.querySelectorAll('#productTable tbody tr');
+
+        rows.forEach(row => {
+            const productName = row.children[0].innerText.toLowerCase();
+            const productId = row.getAttribute('data-product-id');
+            if (productName.includes(searchValue) || productId.includes(searchValue)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function openReviewModal(productId) {
+        document.getElementById('productId').value = productId;
+        $('#reviewModal').modal('show');
+    }
+
+    function submitReview() {
+        const productId = document.getElementById('productId').value;
+        const rating = document.getElementById('rating').value;
+        const reviewText = document.getElementById('reviewText').value;
+
+        fetch(`/product/${productId}/review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ rating, reviewText })
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Review submitted successfully!');
+                $('#reviewModal').modal('hide');
+                location.reload(); // Reload to see the new review
+            } else {
+                alert('Error submitting review.');
+            }
+        });
+    }
+</script>
