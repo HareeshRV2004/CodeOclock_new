@@ -26,9 +26,18 @@ class Product(db.Model):
     farmer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def generate_qr_code(self, chain=None):
-        qr_data = f"Product: {self.name}, Price: {self.price}, Quantity: {self.quantity}, Farmer: {self.farmer_name}"
+        reviews = Review.query.filter_by(product_id=self.id).all()
+        review_data = " | ".join([f"Review: {review.review_text}, Rating: {'★' * review.rating}" for review in reviews])
+        
+        qr_data = (f"Product: {self.name}, Price: {self.price}, "
+                    f"Quantity: {self.quantity}, Farmer: {self.farmer_name}")
+        
         if chain:
             qr_data += f", Chain: {chain}"
+        
+        if reviews:
+            qr_data += f", Reviews: {review_data}"
+        
         qr = qrcode.make(qr_data)
         qr_code_path = f'static/qr_codes/{self.id}.png'
         qr.save(qr_code_path)
@@ -53,6 +62,13 @@ class Order(db.Model):
     chain = db.Column(db.String(255), nullable=True)
 
     product = db.relationship('Product', backref='orders', lazy=True)
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    review_text = db.Column(db.String(255), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+
 
 # Create the database tables
 with app.app_context():
@@ -107,6 +123,43 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+@app.route('/product/<int:product_id>')
+def get_product(product_id):
+    product = Product.query.filter_by(id=product_id).first()
+    if product:
+        farmer = User.query.get(product.farmer_id)
+        product_data = {
+            'id': product.id,
+            'name': product.name,
+            'quantity': product.quantity,
+            'price': product.price,
+            'farmer_name': farmer.username,
+            'manufacture_date': product.manufacture_date
+        }
+        return {'product': product_data}
+    return {'product': None}, 404
+
+
+@app.route('/farmer/reviews')
+def view_reviews_farmer():
+    if 'role' in session and session['role'] == 'farmer':
+        products = Product.query.filter_by(farmer_id=session['user_id']).all()
+        reviews = []
+        for product in products:
+            product_reviews = Review.query.filter_by(product_id=product.id).all()
+            for review in product_reviews:
+                user = User.query.get(review.user_id)
+                reviews.append({
+                    'product_name': product.name,
+                    'farmer_name': session['username'],
+                    'review_text': review.review_text,
+                    'rating': review.rating,
+                    'reviewer_username': user.username
+                })
+        return render_template('farmer_reviews.html', reviews=reviews)
+    return redirect(url_for('login'))
+
+
 
 @app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
@@ -134,10 +187,9 @@ def add_product():
 def view_products_consumer():
     if 'role' in session and session['role'] == 'consumer':
         products = Product.query.all()
-    return render_template('product_list_consumer.html', products=products)
+        return render_template('product_list_consumer.html', products=products)
+    return redirect(url_for('login'))
 
-# View products for distributors with buy 
-@app.route('/view_products')
 @app.route('/view_products')
 def view_products():
     if 'role' in session and session['role'] == 'distributor':
@@ -173,22 +225,18 @@ def view_products():
         return render_template('product_list.html', products=available_products, accepted_orders=accepted_orders)
     return redirect(url_for('login'))
 
-# View all products added by the farmer
 @app.route('/farmer/products')
 def view_all_farmer_products():
     if 'role' in session and session['role'] == 'farmer':
-        # Query all products added by the logged-in farmer
         products = Product.query.filter_by(farmer_id=session['user_id']).all()
         return render_template('farmer_products.html', products=products)
     return redirect(url_for('login'))
 
-# Distributor clicks buy button
 @app.route('/buy/<int:product_id>', methods=['POST'])
 def buy_product(product_id):
     if 'role' in session and session['role'] == 'distributor':
         product = Product.query.get_or_404(product_id)
         
-        # Check if the distributor already has an order for this product
         existing_order = Order.query.filter_by(product_id=product.id, distributor_id=session['user_id'], status='waiting').first()
         if not existing_order:
             new_order = Order(
@@ -229,6 +277,26 @@ def update_order_status(order_id, action):
         db.session.commit()
         return redirect(url_for('view_orders_farmer'))
     return redirect(url_for('login'))
+
+@app.route('/product/<int:product_id>/review', methods=['POST'])
+def submit_review(product_id):
+    if 'user_id' in session:
+        review_data = request.json
+        rating = review_data.get('rating')
+        review_text = review_data.get('reviewText')
+
+        new_review = Review(product_id=product_id, user_id=session['user_id'], review_text=review_text, rating=rating)
+        db.session.add(new_review)
+        db.session.commit()
+        
+        # Regenerate QR code after the review is submitted
+        product = Product.query.get(product_id)
+        product.generate_qr_code()  # Optionally pass chain if needed
+
+        return {'status': 'success'}
+
+    return {'status': 'error'}, 403
+
 
 @app.route('/confirm_payment/<int:order_id>')
 def confirm_payment(order_id):
